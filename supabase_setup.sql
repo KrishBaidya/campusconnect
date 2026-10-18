@@ -38,6 +38,7 @@ CREATE TABLE "profiles" (
     "last_name" TEXT,
     "avatar_url" TEXT,
     "headline" TEXT,
+    "bio" TEXT,
     "college_id" UUID,
     "department" TEXT,
     "batch_year" INTEGER,
@@ -47,8 +48,11 @@ CREATE TABLE "profiles" (
     "availability" JSONB,
     "achievements" JSONB NOT NULL DEFAULT '[]',
     "github_url" TEXT,
+    "github_username" TEXT,
     "linkedin_url" TEXT,
     "points" INTEGER NOT NULL DEFAULT 0,
+    "projects" JSONB NOT NULL DEFAULT '[]',
+    "onboarded_at" TIMESTAMPTZ(6),
 
     CONSTRAINT "profiles_pkey" PRIMARY KEY ("id")
 );
@@ -146,6 +150,11 @@ create index if not exists profile_embeddings_hnsw
   on public.profile_embeddings using hnsw (embedding vector_cosine_ops);
 
 -- Top matches for one user. scope: 'college' = same college only, 'global' = everyone.
+-- (same as prisma/migrations/3_match_profiles/migration.sql)
+-- Load pgvector in this session first: without it Postgres treats
+-- hnsw.iterative_scan as an unknown setting and refuses the SET below.
+select '[0]'::extensions.vector;
+
 create or replace function public.match_profiles(
   p_user_id uuid,
   p_scope   text default 'global',
@@ -154,19 +163,29 @@ create or replace function public.match_profiles(
 returns table (profile_id uuid, similarity float)
 language sql stable
 set search_path = public, extensions
+set hnsw.iterative_scan = relaxed_order
 as $$
-  select e.profile_id,
-         1 - (e.embedding <=> me.embedding) as similarity
-  from profile_embeddings e
-  join profiles p        on p.id = e.profile_id
-  join profile_embeddings me on me.profile_id = p_user_id
-  join profiles mine     on mine.id = p_user_id
-  where e.profile_id <> p_user_id
-    and e.embedding is not null
-    and (p_scope = 'global' or p.college_id = mine.college_id)
-  order by e.embedding <=> me.embedding
-  limit p_limit;
+  with nearest as materialized (
+    select e.profile_id,
+           e.embedding <=> (select embedding from profile_embeddings where profile_id = p_user_id) as distance
+    from profile_embeddings e
+    join profiles p on p.id = e.profile_id
+    where e.profile_id <> p_user_id
+      and e.embedding is not null
+      and (p_scope = 'global'
+           or p.college_id = (select college_id from profiles where id = p_user_id))
+    order by e.embedding <=> (select embedding from profile_embeddings where profile_id = p_user_id)
+    limit p_limit
+  )
+  -- relaxed_order can return near-ties slightly out of order, so re-sort the few rows.
+  -- "+ 0" stops Postgres 17+ from assuming the CTE is already sorted and skipping it.
+  select profile_id, 1 - distance as similarity
+  from nearest
+  order by distance + 0;
 $$;
+
+-- Embeddings are server-only (read through Prisma), so keep this off the public API.
+revoke execute on function public.match_profiles(uuid, text, int) from public, anon, authenticated;
 
 -- =====================================================================
 -- 5. Messages (same as prisma/migrations/2_messages/migration.sql)

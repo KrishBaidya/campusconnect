@@ -9,9 +9,17 @@ export default function Home() {
         Hello!!
       </h1>
       <ConnectionHub />
-      <Link href="/messages" className="mt-6 text-sm font-medium underline underline-offset-4">
-        Messages
-      </Link>
+      <div className="mt-6 flex gap-4 text-sm font-medium">
+        <Link href="/discover" className="underline underline-offset-4">
+          Discover
+        </Link>
+        <Link href="/profile" className="underline underline-offset-4">
+          Profile
+        </Link>
+        <Link href="/messages" className="underline underline-offset-4">
+          Messages
+        </Link>
+      </div>
     </div>
   );
 }
