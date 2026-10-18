@@ -1,0 +1,97 @@
+create extension if not exists vector with schema extensions;
+
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+create extension if not exists vector with schema extensions;
+// AluminX — Prisma schema (Prisma ORM 7, Supabase Postgres)
+// Connection URLs live in prisma.config.ts, not here.
+
+enum UserRole {
+  student
+  alumni
+
+  @@map("user_role")
+}
+
+model College {
+  id       String    @id @default(uuid()) @db.Uuid
+  name     String    @unique
+  city     String?
+  profiles Profile[]
+
+  @@map("colleges")
+}
+
+/// One row per Supabase Auth user. `id` is the same uuid as auth.users.id
+/// (the foreign key to auth.users is added in the SQL migration, because
+/// Prisma does not manage Supabase's `auth` schema).
+model Profile {
+  id           String    @id @db.Uuid
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  role         UserRole?
+  firstName    String?   @map("first_name")
+  lastName     String?   @map("last_name")
+  avatarUrl    String?   @map("avatar_url")
+  headline     String?
+  collegeId    String?   @map("college_id") @db.Uuid
+  college      College?  @relation(fields: [collegeId], references: [id])
+  department   String?
+  batchYear    Int?      @map("batch_year")
+  interests    String[]  @default([])
+  expertise    String[]  @default([])
+  /// e.g. "mentor", "referral", "cofounder", "investor"
+  intents      String[]  @default([])
+  /// e.g. {"days":["sat"],"hours":"18-20"}
+  availability Json?
+  achievements Json      @default("[]")
+  githubUrl    String?   @map("github_url")
+  linkedinUrl  String?   @map("linkedin_url")
+  points       Int       @default(0)
+
+  experiences  Experience[]
+  embedding    ProfileEmbedding?
+
+  @@index([collegeId])
+  @@index([role])
+  @@map("profiles")
+}
+
+/// Work history — one row per company, so alumni can have several.
+model Experience {
+  id        String    @id @default(uuid()) @db.Uuid
+  profileId String    @map("profile_id") @db.Uuid
+  profile   Profile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  company   String
+  jobRole   String?   @map("job_role")
+  startDate DateTime? @map("start_date") @db.Date
+  /// null = current job
+  endDate   DateTime? @map("end_date") @db.Date
+
+  @@index([profileId])
+  @@index([company])
+  @@map("experiences")
+}
+
+/// One embedding per profile (pgvector). Prisma can't read or write the
+/// `vector` type directly — use $queryRaw / $executeRaw or the match_profiles()
+/// SQL function. 768 dims = Gemini gemini-embedding-001 with outputDimensionality: 768.
+model ProfileEmbedding {
+  profileId String                       @id @map("profile_id") @db.Uuid
+  profile   Profile                      @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  embedding Unsupported("vector(768)")?
+  /// the text that was embedded — lets you re-embed when the profile changes
+  source    String?
+  updatedAt DateTime                     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("profile_embeddings")
+}
