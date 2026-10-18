@@ -1,47 +1,33 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { getUser } from "@/lib/supabase/server";
-import { prisma } from "@/lib/prisma";
-import { ProfileView, type ProfileViewData } from "@/components/profile-view";
+import { getPerson, getViewer } from "@/lib/people";
+import { AppShell } from "@/components/aluminx/app-shell";
+import { ProfileView } from "@/components/aluminx/profile-view";
+import { ProfileSkeleton } from "@/components/aluminx/profile-skeleton";
+
+export const metadata: Metadata = { title: "Your profile · AluminX" };
 
 export default function ProfilePage() {
-    return (
-        <Suspense fallback={<main className="grid min-h-dvh place-items-center text-muted-foreground">Loading profile…</main>}>
-            <MyProfile />
-        </Suspense>
-    );
+  return (
+    <Suspense fallback={<ProfileSkeleton />}>
+      <MyProfile />
+    </Suspense>
+  );
 }
 
-const ym = (d: Date | null) =>
-    d ? d.toLocaleDateString("en-IN", { month: "short", year: "numeric", timeZone: "UTC" }) : null;
-
 async function MyProfile() {
-    const user = await getUser();
-    if (!user) redirect("/signin");
+  const user = await getUser();
+  if (!user) redirect("/signin?next=/profile");
 
-    const p = await prisma.profile.findUnique({
-        where: { id: user.id },
-        include: { college: true, experiences: { orderBy: { startDate: "desc" } } },
-    });
-    if (!p?.onboardedAt) redirect("/onboarding");
+  const viewer = await getViewer(user.id, (user.user_metadata?.full_name ?? user.user_metadata?.name) as string | undefined);
+  const person = viewer.onboarded ? await getPerson(user.id, viewer) : null;
+  if (!person) redirect("/onboarding");
 
-    const data: ProfileViewData = {
-        name: [p.firstName, p.lastName].filter(Boolean).join(" ") || user.email || "Member",
-        email: user.email ?? "",
-        avatar: p.avatarUrl,
-        headline: p.headline,
-        bio: p.bio,
-        role: p.role,
-        college: p.college?.name,
-        batchYear: p.batchYear,
-        interests: p.interests,
-        expertise: p.expertise,
-        intents: p.intents,
-        projects: Array.isArray(p.projects) ? (p.projects as ProfileViewData["projects"]) : [],
-        experiences: p.experiences.map((e) => ({ company: e.company, jobRole: e.jobRole, start: ym(e.startDate), end: ym(e.endDate) })),
-        githubUrl: p.githubUrl,
-        linkedinUrl: p.linkedinUrl,
-    };
-
-    return <ProfileView user={data} />;
+  return (
+    <AppShell viewer={viewer} active="profile">
+      <ProfileView person={person} isMe />
+    </AppShell>
+  );
 }
