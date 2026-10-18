@@ -62,6 +62,9 @@ model Profile {
 
   experiences  Experience[]
   embedding    ProfileEmbedding?
+  conversationsAsA Conversation[] @relation("ConversationUserA")
+  conversationsAsB Conversation[] @relation("ConversationUserB")
+  messagesSent     Message[]
 
   @@index([collegeId])
   @@index([role])
@@ -96,4 +99,38 @@ model ProfileEmbedding {
   updatedAt DateTime                     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@map("profile_embeddings")
+}
+
+
+/// A 1:1 direct-message thread. The pair is stored ordered (userA < userB)
+/// so each pair has exactly one row — create it via the start_conversation()
+/// SQL function. RLS + Realtime setup live in the 2_messages migration.
+model Conversation {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  lastMessageAt DateTime  @default(now()) @map("last_message_at") @db.Timestamptz(6)
+  userAId       String    @map("user_a") @db.Uuid
+  userA         Profile   @relation("ConversationUserA", fields: [userAId], references: [id], onDelete: Cascade)
+  userBId       String    @map("user_b") @db.Uuid
+  userB         Profile   @relation("ConversationUserB", fields: [userBId], references: [id], onDelete: Cascade)
+  messages      Message[]
+
+  @@unique([userAId, userBId])
+  @@index([userBId])
+  @@map("conversations")
+}
+
+model Message {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  conversationId String       @map("conversation_id") @db.Uuid
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String       @map("sender_id") @db.Uuid
+  sender         Profile      @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  body           String
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  /// null = unread by the recipient
+  readAt         DateTime?    @map("read_at") @db.Timestamptz(6)
+
+  @@index([conversationId, createdAt])
+  @@map("messages")
 }
