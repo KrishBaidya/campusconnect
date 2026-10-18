@@ -45,3 +45,4 @@ dist/
 
 # prisma client (generated)
 /lib/generated/
+!.env.example

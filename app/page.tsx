@@ -1,5 +1,5 @@
 import { ConnectionHub } from "@/components/connection_hub";
-import Image from "next/image";
+import Link from "next/link";
 
 export default function Home() {
   
@@ -9,6 +9,9 @@ export default function Home() {
         Hello!!
       </h1>
       <ConnectionHub />
+      <Link href="/messages" className="mt-6 text-sm font-medium underline underline-offset-4">
+        Messages
+      </Link>
     </div>
   );
 }
