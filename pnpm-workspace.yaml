@@ -3,3 +3,5 @@ allowBuilds:
   sharp: false
   unrs-resolver: false
   workerd: set this to true or false
+  prisma: true
+  "@prisma/engines": true
