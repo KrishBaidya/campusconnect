@@ -4,7 +4,10 @@ import { redirect } from "next/navigation";
 import { getUser } from "@/lib/supabase/server";
 import { discoverPeople, getViewer, type Scope } from "@/lib/people";
 import { AppShell } from "@/components/aluminx/app-shell";
-import { DiscoverView, ScopeSwitch } from "@/components/aluminx/discover-view";
+import { DiscoverView, ScopeSwitch, type DiscoverMode } from "@/components/aluminx/discover-view";
+import { aiSearch, cofounders, reverseMentors } from "@/lib/match";
+import { connectionStates } from "@/lib/network";
+import type { PersonCard } from "@/lib/people";
 
 export const metadata: Metadata = { title: "Discover · AluminX" };
 
@@ -23,19 +26,42 @@ async function Discover({ searchParams }: Pick<PageProps<"/discover">, "searchPa
   const viewer = await getViewer(user.id, (user.user_metadata?.full_name ?? user.user_metadata?.name) as string | undefined);
   if (!viewer.onboarded) redirect("/onboarding");
 
-  const { scope: s } = await searchParams;
+  const { scope: s, mode: m, q: rawQ } = await searchParams;
   // No college on file means there's nothing to scope to, so start Global.
   const scope: Scope = s === "global" || !viewer.collegeId ? "global" : "college";
-  const people = await discoverPeople(viewer, scope);
+  const mode: DiscoverMode = m === "ai" || m === "reverse" || m === "cofounder" ? m : "people";
+  const q = typeof rawQ === "string" ? rawQ.trim().slice(0, 300) : "";
+
+  let people: PersonCard[] = [];
+  let aiError: string | null = null;
+  if (mode === "people") people = await discoverPeople(viewer, scope);
+  else if (mode === "reverse") people = await reverseMentors(viewer, scope);
+  else if (mode === "cofounder") people = await cofounders(viewer, scope);
+  else if (q) {
+    const res = await aiSearch(viewer, scope, q);
+    if (res.ok) people = res.people;
+    else aiError = res.error;
+  }
+  const connections = await connectionStates(viewer.id, people.map((p) => p.id));
 
   return (
     <AppShell viewer={viewer} active="discover">
       <main className="main" style={{ maxWidth: 1080 }}>
         <div className="page-h">
           <h1>Discover</h1>
-          <ScopeSwitch scope={scope} college={viewer.college} />
+          <ScopeSwitch scope={scope} college={viewer.college} mode={mode} q={q || undefined} />
         </div>
-        <DiscoverView people={people} scope={scope} college={viewer.college} myTags={viewer.tags} />
+        <DiscoverView
+          key={`${scope}:${mode}:${q}`}
+          people={people}
+          connections={connections}
+          scope={scope}
+          mode={mode}
+          aiQuery={q}
+          aiError={aiError}
+          college={viewer.college}
+          myTags={viewer.tags}
+        />
       </main>
     </AppShell>
   );

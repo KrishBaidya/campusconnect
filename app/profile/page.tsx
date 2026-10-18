@@ -6,6 +6,8 @@ import { getPerson, getViewer } from "@/lib/people";
 import { AppShell } from "@/components/aluminx/app-shell";
 import { ProfileView } from "@/components/aluminx/profile-view";
 import { ProfileSkeleton } from "@/components/aluminx/profile-skeleton";
+import { ClubsEditor } from "@/components/aluminx/clubs-editor";
+import { prisma } from "@/lib/prisma";
 
 export const metadata: Metadata = { title: "Your profile · AluminX" };
 
@@ -25,9 +27,13 @@ async function MyProfile() {
   const person = viewer.onboarded ? await getPerson(user.id, viewer) : null;
   if (!person) redirect("/onboarding");
 
+  const collegeClubs = viewer.collegeId
+    ? await prisma.club.findMany({ where: { collegeId: viewer.collegeId }, select: { name: true }, orderBy: { name: "asc" }, take: 200 })
+    : [];
+
   return (
     <AppShell viewer={viewer} active="profile">
-      <ProfileView person={person} isMe />
+      <ProfileView person={person} isMe clubsSlot={<ClubsEditor clubs={person.clubs} suggestions={collegeClubs.map((c) => c.name)} />} />
     </AppShell>
   );
 }

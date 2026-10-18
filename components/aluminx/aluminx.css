@@ -353,6 +353,110 @@
 @keyframes ax-rise { from { opacity: 0; transform: translateY(6px) } to { opacity: 1; transform: none } }
 @keyframes ax-shake { 10%, 90% { transform: translateX(-1px) } 20%, 80% { transform: translateX(2px) } 30%, 50%, 70% { transform: translateX(-4px) } 40%, 60% { transform: translateX(4px) } }
 
+/* ---------- the link button: offline -> handshake -> live ---------- */
+.ax .lk { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 38px; min-width: 136px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--line-2); background: var(--surface); color: var(--fg); font: 500 14px var(--ax-font); cursor: pointer; white-space: nowrap;
+  transition: transform .18s var(--spring), border-color .25s, background-color .25s, color .25s, box-shadow .4s }
+.ax .lk:active { transform: scale(.95) }
+.ax .lk:hover { border-color: var(--tick) }
+.ax .lk[disabled] { opacity: .5; cursor: progress }
+.ax .lk.sm { height: 32px; min-width: 120px; padding: 0 11px; font-size: 13px; border-radius: 10px }
+.ax .lk.primary[data-s=offline] { background: linear-gradient(var(--accent-hi), var(--accent-lo)); border-color: transparent; color: #fff; box-shadow: 0 8px 22px -6px rgba(79, 70, 229, .6) }
+.ax .lk .ic { font-size: 17px }
+.ax .lk .lk-b { display: none }
+.ax .lk[data-s=handshake] { border-color: rgba(251, 191, 36, .35); background: rgba(251, 191, 36, .08); color: var(--warn) }
+.ax .lk[data-s=live] { border-color: rgba(52, 211, 153, .32); background: rgba(52, 211, 153, .08); color: var(--ok) }
+.ax .lk[data-s=handshake] .lk-a, .ax .lk[data-s=live] .lk-a { font: 500 12.5px var(--ax-mono) }
+.ax .lk[data-s=handshake]:is(:hover, :focus-visible) { border-color: rgba(248, 113, 113, .45); background: rgba(248, 113, 113, .08); color: var(--err) }
+.ax .lk[data-s=live]:is(:hover, :focus-visible) { border-color: rgba(129, 140, 248, .5); background: rgba(99, 102, 241, .12); color: var(--accent-ink) }
+.ax .lk:is([data-s=handshake], [data-s=live]):is(:hover, :focus-visible) .lk-a { display: none }
+.ax .lk:is([data-s=handshake], [data-s=live]):is(:hover, :focus-visible) .lk-b { display: inline }
+.ax .lk[data-s=handshake]:is(:hover, :focus-visible) .lk-rail, .ax .lk[data-s=live]:is(:hover, :focus-visible) .lk-dot { display: none }
+.ax .lk-rail { position: relative; width: 20px; height: 4px; border-radius: 4px; background: rgba(251, 191, 36, .22); overflow: hidden; flex: none }
+.ax .lk-rail i { position: absolute; top: 0; width: 6px; height: 4px; border-radius: 2px; background: var(--warn); box-shadow: 0 0 6px var(--warn); animation: ax-srlL .9s linear infinite }
+.ax .lk-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 8px var(--ok); flex: none }
+.ax .lk.icon { min-width: 0; width: 34px; height: 34px; padding: 0; border-radius: 10px }
+.ax .lk.icon .lk-a, .ax .lk.icon .lk-b { display: none !important }
+.ax .lk.icon:is(:hover, :focus-visible) .lk-rail, .ax .lk.icon:is(:hover, :focus-visible) .lk-dot { display: block }
+.ax .lk-pair { display: inline-flex; align-items: center; gap: 2px }
+
+/* ---------- segmented control ---------- */
+.ax .seg { position: relative; display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr; padding: 3px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line-2) }
+.ax .seg a, .ax .seg button { position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; gap: 6px; height: 32px; padding: 0 14px; border: 0; background: none; color: var(--fg-2); font: 500 13.5px var(--ax-font); border-radius: 9px; cursor: pointer; white-space: nowrap; text-decoration: none; transition: color .2s, background-color .2s }
+.ax .seg :is(a, button)[aria-current=true], .ax .seg button[aria-pressed=true] { color: var(--fg); background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--tick) }
+.ax .seg .ic { font-size: 15px }
+
+/* ---------- home feed ---------- */
+.ax .shell.three { grid-template-columns: 232px minmax(0, 1fr) 320px }
+.ax .aside { border-left: 1px solid var(--line); padding: 24px; display: flex; flex-direction: column; gap: 28px; min-width: 0; background: var(--sunk) }
+.ax .aside h3 { font-size: 14px; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px }
+.ax .feed-h { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 20px }
+.ax .feed-h h1 { font-size: 30px; margin-right: auto }
+.ax .live-row { display: flex; gap: 16px; overflow-x: auto; padding: 6px 2px 18px; margin-bottom: 10px; scrollbar-width: none }
+.ax .story { display: grid; justify-items: center; gap: 8px; width: 64px; flex: none; border: 0; background: none; cursor: pointer; padding: 4px 0 0; color: inherit; font: inherit }
+.ax .story .node { width: 52px; border-radius: 16px; font-size: 15px; transition: transform .2s var(--spring), box-shadow .3s }
+.ax .story .node.new { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent), 0 0 18px rgba(99, 102, 241, .5) }
+.ax .story:hover .node { transform: translateY(-3px) }
+.ax .story small { font-size: 12px; color: var(--fg-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 64px }
+.ax .story .add { display: grid; place-items: center; width: 52px; aspect-ratio: 1; border-radius: 16px; border: 1px dashed var(--tick); color: var(--fg-2); transition: border-color .2s, color .2s }
+.ax .story:hover .add { border-color: var(--accent-hi); color: var(--accent-hi) }
+.ax .composer { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 14px; margin-bottom: 32px }
+.ax .composer > .node { width: 48px; border-radius: 14px }
+.ax .composer .box { border: 1px solid var(--line-2); border-radius: 16px; background: var(--surface); padding: 10px 10px 10px 16px; display: grid; gap: 10px; transition: border-color .2s, box-shadow .2s }
+.ax .composer .box:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(99, 102, 241, .2) }
+.ax .composer textarea { border: 0; background: none; color: var(--fg); font: 15px/1.5 var(--ax-font); resize: none; outline: none; min-height: 44px; width: 100% }
+.ax .composer textarea::placeholder { color: var(--fg-3) }
+.ax .composer .row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap }
+.ax .composer .row .input { height: 32px; font-size: 13px; padding: 0 10px; border-radius: 10px; flex: 1 1 160px; width: auto }
+.ax .composer select.input { flex: 0 0 auto; cursor: pointer }
+.ax .thread { display: grid }
+.ax .tp { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 14px; position: relative; padding-bottom: 36px }
+.ax .tp::before { content: ""; position: absolute; left: 22px; top: 54px; bottom: 6px; width: 4px; border-radius: 4px; background: var(--rail) }
+.ax .tp.live::before { background: linear-gradient(rgba(99, 102, 241, .75), var(--rail) 85%) }
+.ax .tp:last-child::before { bottom: auto; height: 48px; background: linear-gradient(var(--rail), transparent) }
+.ax .tp > a > .node, .ax .tp > .node { width: 48px; border-radius: 14px; font-size: 15px }
+.ax .tp-h { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-height: 48px }
+.ax .tp-h .who { flex: 1; min-width: 0 }
+.ax .tp-h .who a { text-decoration: none }
+.ax .tp-h b { font-weight: 600 }
+.ax .tp-h small { display: block; color: var(--fg-3); font-size: 13px }
+.ax .tp-body { font-size: 15.5px; line-height: 1.6; max-width: 66ch; margin-top: 6px; white-space: pre-wrap; overflow-wrap: anywhere }
+.ax .attach { margin-top: 14px; border: 1px solid var(--line-2); border-radius: 16px; background: var(--surface); padding: 14px 16px; display: grid; gap: 10px }
+.ax .attach .t { display: flex; align-items: center; gap: 10px; font-weight: 600; flex-wrap: wrap }
+.ax .attach .t .ic { color: var(--accent-hi); font-size: 18px }
+.ax .attach a { color: var(--accent-ink); overflow-wrap: anywhere }
+.ax .acts { display: flex; gap: 2px; margin: 10px 0 0 -10px; flex-wrap: wrap; align-items: center }
+.ax .act { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 10px; border: 0; border-radius: 10px; background: none; color: var(--fg-2); cursor: pointer; font: 13.5px var(--ax-font); text-decoration: none; transition: background-color .2s, color .2s }
+.ax .act:hover { background: var(--surface); color: var(--fg) }
+.ax .act .ic { font-size: 17px }
+.ax .act[aria-pressed=true] { color: var(--accent-hi) }
+.ax .act[aria-pressed=true] .ic { fill: currentColor }
+.ax .act .num { font: 12.5px var(--ax-mono) }
+.ax .pts { display: grid; gap: 4px }
+.ax .pts b { font: 500 32px/1 var(--ax-mono); color: var(--accent-ink) }
+.ax .lb { display: grid; gap: 10px; counter-reset: lb }
+.ax .lb .person b { font-weight: 500 }
+.ax .lb .rank { font: 12px var(--ax-mono); color: var(--fg-3); width: 18px; text-align: right; flex: none }
+.ax .lb .p { font: 500 13px var(--ax-mono); color: var(--accent-ink); flex: none }
+.ax .rules { display: grid; gap: 6px; font-size: 13px; color: var(--fg-2) }
+.ax .rules div { display: flex; justify-content: space-between; gap: 8px }
+.ax .rules span:last-child { font-family: var(--ax-mono); color: var(--ok) }
+.ax .story-view { width: min(440px, calc(100vw - 32px)) }
+.ax .story-view .sv { display: grid; gap: 16px; padding: 22px; min-height: 320px; align-content: start; background: radial-gradient(90% 70% at 50% 0%, hsl(var(--h) 60% 35% / .35), transparent 70%) }
+.ax .story-view .bar { display: flex; gap: 4px }
+.ax .story-view .bar i { flex: 1; height: 3px; border-radius: 3px; background: var(--line-2) }
+.ax .story-view .bar i.on { background: var(--fg) }
+.ax .story-view p.body { font-size: 18px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere }
+@media (max-width: 1240px) { .ax .shell.three { grid-template-columns: 76px minmax(0, 1fr) } .ax .shell.three .aside { display: none } }
+@media (max-width: 720px) { .ax .shell.three { grid-template-columns: minmax(0, 1fr) } .ax .composer { grid-template-columns: minmax(0, 1fr) } .ax .composer > .node { display: none } }
+
+/* ---------- discover extras ---------- */
+.ax .modes { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px }
+.ax .fgroup { display: contents }
+.ax .flabel { font: 11px var(--ax-mono); color: var(--fg-3); text-transform: uppercase; letter-spacing: .06em; margin-right: 2px }
+.ax .hint { font-size: 13px; color: var(--fg-3); margin: -8px 0 16px }
+.ax .ai-row { display: flex; gap: 8px; margin-bottom: 16px }
+.ax .ai-row .cmd { flex: 1; margin: 0 }
+
 @keyframes ax-navpk { 0% { transform: translateY(0); opacity: 0 } 15% { opacity: 1 } 80% { opacity: 1 } 100% { transform: translateY(calc(var(--ai, 0) * 44px + 34px)); opacity: 0 } }
 @keyframes ax-srlL { from { left: -10px } to { left: 100% } }
 @keyframes ax-srlR { from { left: 100% } to { left: -10px } }

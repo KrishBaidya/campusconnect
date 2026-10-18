@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/lib/generated/prisma/client";
 import { monthRange } from "@/lib/mentorship";
 import { DECLINE_REASONS } from "@/lib/mentorship-shared";
+import { award } from "@/lib/points";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -87,6 +88,8 @@ export async function acceptRequest(requestId: string, slot: string): Promise<Ac
       data: { status: "accepted", scheduledAt: at, respondedAt: new Date() },
     });
     if (count === 0) return fail("This request was already answered.");
+    await award(tx, r.mentorId, "mentorship_accepted", r.id);
+    await award(tx, r.menteeId, "session_booked", r.id);
     refresh();
     return { ok: true } as const;
   });

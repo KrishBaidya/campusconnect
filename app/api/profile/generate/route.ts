@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { fetchGitHubSummary, type GitHubSummary } from "@/lib/github";
 import { embed, embeddingSource, generateProfile } from "@/lib/ai/gemini";
 import { githubUsernameOf } from "@/lib/profile/github-identity";
+import { award } from "@/lib/points";
 
 export const maxDuration = 60; // Gemini can take 10-30s with a PDF
 
@@ -133,6 +134,9 @@ export async function POST(request: Request) {
       })),
     }),
   ]);
+
+  // first finished profile earns points (no-op on re-runs)
+  await award(prisma, user.id, "profile_complete", user.id).catch((e) => console.error("Awarding points failed:", e));
 
   // ---------- 5. embedding → pgvector ----------
   const source = embeddingSource({
