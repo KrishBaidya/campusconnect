@@ -26,11 +26,42 @@ enum MentorshipStatus {
   @@map("mentorship_status")
 }
 
+enum ConnectionStatus {
+  pending
+  accepted
+  declined
+
+  @@map("connection_status")
+}
+
+enum PostKind {
+  update
+  opportunity
+  referral
+  project
+  story
+
+  @@map("post_kind")
+}
+
+enum PointReason {
+  profile_complete
+  connection
+  quick_reply
+  mentorship_accepted
+  session_booked
+  post
+
+  @@map("point_reason")
+}
+
 model College {
   id       String    @id @default(uuid()) @db.Uuid
   name     String    @unique
   city     String?
   profiles Profile[]
+  clubs    Club[]
+  posts    Post[]
 
   @@map("colleges")
 }
@@ -80,9 +111,16 @@ model Profile {
   messagesSent     Message[]
   mentorshipsAsMentee MentorshipRequest[] @relation("MentorshipMentee")
   mentorshipsAsMentor MentorshipRequest[] @relation("MentorshipMentor")
+  connectionsSent     Connection[]        @relation("ConnectionRequester")
+  connectionsReceived Connection[]        @relation("ConnectionAddressee")
+  posts               Post[]
+  postLikes           PostLike[]
+  clubs               ClubMember[]
+  pointEvents         PointEvent[]
 
   @@index([collegeId])
   @@index([role])
+  @@index([points])
   @@map("profiles")
 }
 
@@ -169,4 +207,97 @@ model MentorshipRequest {
   @@index([mentorId, status])
   @@index([menteeId, status])
   @@map("mentorship_requests")
+}
+
+/// The "Connect" handshake. One row per pair (unique on the unordered pair in
+/// SQL, see 5_network); the requester's personalised note is in `message`.
+model Connection {
+  id          String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  requesterId String           @map("requester_id") @db.Uuid
+  requester   Profile          @relation("ConnectionRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  addresseeId String           @map("addressee_id") @db.Uuid
+  addressee   Profile          @relation("ConnectionAddressee", fields: [addresseeId], references: [id], onDelete: Cascade)
+  status      ConnectionStatus @default(pending)
+  message     String?
+  respondedAt DateTime?        @map("responded_at") @db.Timestamptz(6)
+
+  @@index([requesterId, status])
+  @@index([addresseeId, status])
+  @@map("connections")
+}
+
+/// Feed posts. Stories are posts with kind = story and an expiry 24h out.
+model Post {
+  id        String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  authorId  String     @map("author_id") @db.Uuid
+  author    Profile    @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  /// the author's college when posted, for the college-scoped feed
+  collegeId String?    @map("college_id") @db.Uuid
+  college   College?   @relation(fields: [collegeId], references: [id])
+  kind      PostKind   @default(update)
+  body      String
+  linkUrl   String?    @map("link_url")
+  /// for referrals and opportunities: company tag
+  company   String?
+  expiresAt DateTime?  @map("expires_at") @db.Timestamptz(6)
+  likes     PostLike[]
+
+  @@index([createdAt])
+  @@index([collegeId, createdAt])
+  @@index([authorId, createdAt])
+  @@map("posts")
+}
+
+model PostLike {
+  postId    String   @map("post_id") @db.Uuid
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  profileId String   @map("profile_id") @db.Uuid
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@id([postId, profileId])
+  @@index([profileId])
+  @@map("post_likes")
+}
+
+model Club {
+  id        String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  collegeId String       @map("college_id") @db.Uuid
+  college   College      @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+  name      String
+  createdAt DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  members   ClubMember[]
+
+  @@unique([collegeId, name])
+  @@map("clubs")
+}
+
+model ClubMember {
+  clubId    String   @map("club_id") @db.Uuid
+  club      Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  profileId String   @map("profile_id") @db.Uuid
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  joinedAt  DateTime @default(now()) @map("joined_at") @db.Timestamptz(6)
+
+  @@id([clubId, profileId])
+  @@index([profileId])
+  @@map("club_members")
+}
+
+/// Point ledger. A trigger adds each row to profiles.points; (profile, reason,
+/// refId) is unique so one event never pays twice.
+model PointEvent {
+  id        String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profileId String      @map("profile_id") @db.Uuid
+  profile   Profile     @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  reason    PointReason
+  points    Int
+  refId     String      @map("ref_id") @db.Uuid
+  createdAt DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([profileId, reason, refId])
+  @@index([profileId, createdAt])
+  @@map("point_events")
 }

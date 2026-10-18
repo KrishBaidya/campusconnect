@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { notFound, redirect } from "next/navigation";
 import { getUser } from "@/lib/supabase/server";
-import { getPerson, getViewer } from "@/lib/people";
+import { getPerson, getViewer, similarityBetween } from "@/lib/people";
+import { connectionState } from "@/lib/network";
 import { getRequestContext } from "@/lib/mentorship";
 import { AppShell } from "@/components/aluminx/app-shell";
 import { ProfileView } from "@/components/aluminx/profile-view";
@@ -28,12 +29,17 @@ async function Person({ params }: Pick<PageProps<"/profile/[id]">, "params">) {
   if (!UUID.test(id)) notFound();
 
   const viewer = await getViewer(user.id, (user.user_metadata?.full_name ?? user.user_metadata?.name) as string | undefined);
-  const [person, mentorship] = await Promise.all([getPerson(id, viewer), getRequestContext(id, user.id)]);
+  const [person, mentorship, connection, similarity] = await Promise.all([
+    getPerson(id, viewer),
+    getRequestContext(id, user.id),
+    connectionState(user.id, id),
+    similarityBetween(user.id, id),
+  ]);
   if (!person) notFound();
 
   return (
     <AppShell viewer={viewer} active="discover">
-      <ProfileView person={person} isMe={false} mentorship={mentorship} />
+      <ProfileView person={person} isMe={false} mentorship={mentorship} connection={connection} similarity={similarity} />
     </AppShell>
   );
 }

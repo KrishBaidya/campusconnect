@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Briefcase, Clock, FolderGit2, GraduationCap, MessageCircle, Pencil, Route } from "lucide-react";
+import { Briefcase, Clock, FolderGit2, GraduationCap, MessageCircle, Pencil, Route, Sparkles, Trophy, Users } from "lucide-react";
 import { hueOf } from "@/lib/hue";
 import type { PersonProfile } from "@/lib/people";
+import type { ConnState } from "@/lib/network";
+import { ConnectButton } from "./connect-button";
 import { GitHubMark, LinkedInMark } from "./brand-icons";
 import { PersonNode } from "./person-node";
 import { RequestMentorship, type RequestContext } from "./request-mentorship";
@@ -20,7 +22,23 @@ const INTENT_LABELS: Record<string, string> = {
 };
 
 /** Profile A from the mockups: source hub header, identity row, meta line, Overview / Projects tabs. */
-export function ProfileView({ person, isMe, mentorship }: { person: PersonProfile; isMe: boolean; mentorship?: RequestContext | null }) {
+export function ProfileView({
+  person,
+  isMe,
+  mentorship,
+  connection,
+  similarity,
+  clubsSlot,
+}: {
+  person: PersonProfile;
+  isMe: boolean;
+  mentorship?: RequestContext | null;
+  connection?: ConnState;
+  /** 0..1 embedding similarity to the viewer */
+  similarity?: number | null;
+  /** replaces the read-only Clubs list (your own profile passes the editor) */
+  clubsSlot?: React.ReactNode;
+}) {
   const [tab, setTab] = useState<"overview" | "projects">("overview");
   const first = person.name.split(" ")[0];
   const shared = new Set(person.shared.map((t) => t.toLowerCase()));
@@ -42,10 +60,13 @@ export function ProfileView({ person, isMe, mentorship }: { person: PersonProfil
               Edit profile
             </Link>
           ) : (
-            <Link className="btn primary" href={`/messages?to=${person.id}`}>
-              <MessageCircle className="ic" />
-              Message
-            </Link>
+            <>
+              {connection && <ConnectButton person={person} state={connection} primary context="their profile" />}
+              <Link className={connection ? "btn" : "btn primary"} href={`/messages?to=${person.id}`}>
+                <MessageCircle className="ic" />
+                Message
+              </Link>
+            </>
           )}
           {!isMe && mentorship && <RequestMentorship mentorId={person.id} mentorName={person.name} ctx={mentorship} />}
           {person.linkedinUrl && (
@@ -76,6 +97,20 @@ export function ProfileView({ person, isMe, mentorship }: { person: PersonProfil
             {person.department}
           </span>
         )}
+        {typeof similarity === "number" && (
+          <span title="How close your profiles are, from Gemini embeddings">
+            <Sparkles className="ic" />
+            {Math.round(Math.max(0, similarity) * 100)}% match
+          </span>
+        )}
+        <span>
+          <Users className="ic" />
+          {person.connections} {person.connections === 1 ? "connection" : "connections"}
+        </span>
+        <span>
+          <Trophy className="ic" />
+          {person.points} points
+        </span>
         {person.shared.length > 0 && (
           <span>
             <Route className="ic" />
@@ -131,6 +166,19 @@ export function ProfileView({ person, isMe, mentorship }: { person: PersonProfil
           <div className="col">
             <TagSection title="Expertise" tags={person.expertise} shared={shared} />
             <TagSection title="Interests" tags={person.interests} shared={shared} />
+            {clubsSlot ??
+              (person.clubs.length > 0 && (
+                <div className="sec">
+                  <h3>Clubs</h3>
+                  <div className="tags">
+                    {person.clubs.map((c) => (
+                      <span key={c} className="tag sm static">
+                        {c}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
             {person.intents.length > 0 && (
               <div className="sec">
                 <h3>Here to</h3>

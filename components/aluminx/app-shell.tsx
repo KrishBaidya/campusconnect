@@ -15,24 +15,24 @@ const NAV = [
 export type NavKey = (typeof NAV)[number]["key"];
 
 /** The rail-nav shell from the AluminX mockups. `active` lights the rail up to that item. */
-export function AppShell({ viewer, active, children }: { viewer: Viewer; active: NavKey | null; children: React.ReactNode }) {
+export function AppShell({ viewer, active, aside, children }: { viewer: Viewer; active: NavKey | null; aside?: React.ReactNode; children: React.ReactNode }) {
   const ai = Math.max(0, NAV.findIndex((n) => n.key === active));
-  const live = Number(viewer.hasGithub) + Number(viewer.hasLinkedin);
   const counts: Partial<Record<NavKey, number>> = {
+    home: viewer.counts.pendingConnections,
     messages: viewer.counts.unreadMessages,
     mentorship: viewer.counts.pendingMentorship,
   };
 
   return (
     <div className="ax">
-      <div className="shell">
+      <div className={aside ? "shell three" : "shell"}>
         <nav className="rnav" aria-label="App">
           <Link href="/profile" className="rnav-me">
             <span className="node you">{viewer.initials}</span>
             <div>
               <b>{viewer.name}</b>
-              <span className={live ? "chip ok" : "chip"}>
-                {live ? `${live} source${live > 1 ? "s" : ""} live` : "no sources"}
+              <span className="chip acc num">
+                {viewer.points} pts
               </span>
             </div>
           </Link>
@@ -72,6 +72,7 @@ export function AppShell({ viewer, active, children }: { viewer: Viewer; active:
           </div>
         </nav>
         {children}
+        {aside}
       </div>
     </div>
   );

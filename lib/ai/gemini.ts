@@ -189,3 +189,40 @@ export async function embed(text: string): Promise<number[]> {
   const norm = Math.hypot(...values) || 1;
   return values.map((v) => v / norm);
 }
+
+/* ------------------------------ connect messages ------------------------------ */
+
+export type NoteProfile = {
+  name: string;
+  role: string | null;
+  college: string | null;
+  headline: string | null;
+  interests: string[];
+  expertise: string[];
+  intents: string[];
+  experiences: { company: string; jobRole: string | null }[];
+};
+
+const NOTE_SYSTEM = `You write the short note a member of CampusConnect sends with a connection request.
+Rules:
+- 2 or 3 sentences, under 300 characters, first person, from the sender to the recipient.
+- Mention one specific thing they share or that the sender wants to learn from the recipient, using only the facts given.
+- Friendly and direct. No flattery, no emojis, no hashtags, no sign-off, no placeholders like [Name].
+- Address the recipient by first name.`;
+
+/** Drafts a personalised connect note from the sender to the recipient. The sender can edit it before sending. */
+export async function draftConnectNote(from: NoteProfile, to: NoteProfile, context?: string): Promise<string> {
+  const res = await gemini().models.generateContent({
+    model: TEXT_MODEL,
+    contents: [
+      {
+        role: "user",
+        parts: [{ text: `Sender:\n${JSON.stringify(from)}\n\nRecipient:\n${JSON.stringify(to)}${context ? `\n\nThe sender found them through: ${context}` : ""}` }],
+      },
+    ],
+    config: { systemInstruction: NOTE_SYSTEM, temperature: 0.7, maxOutputTokens: 200 },
+  });
+  const text = res.text?.trim().replace(/^"|"$/g, "");
+  if (!text) throw new Error("Gemini returned an empty note");
+  return text.slice(0, 600);
+}

@@ -34,6 +34,10 @@ export type PersonCard = {
   similarity: number | null;
   /** lowercased text the search box matches against */
   keywords: string;
+  /** every company in their work history, current first ("company tags") */
+  companies: string[];
+  clubs: string[];
+  points: number;
 };
 
 export type PersonProfile = PersonCard & {
@@ -48,6 +52,7 @@ export type PersonProfile = PersonCard & {
   experiences: { company: string; jobRole: string | null; start: string | null; end: string | null; current: boolean }[];
   /** interests/expertise you both list (empty on your own profile) */
   shared: string[];
+  connections: number;
 };
 
 export type Viewer = {
@@ -61,15 +66,18 @@ export type Viewer = {
   hasGithub: boolean;
   hasLinkedin: boolean;
   onboarded: boolean;
+  points: number;
   /** badges on the rail nav */
-  counts: { unreadMessages: number; pendingMentorship: number };
+  counts: { unreadMessages: number; pendingMentorship: number; pendingConnections: number };
 };
 
-const include = {
+export const cardInclude = {
   college: { select: { name: true } },
   experiences: { orderBy: [{ endDate: { sort: "desc", nulls: "first" } }, { startDate: "desc" }] },
+  clubs: { select: { club: { select: { name: true } } } },
 } satisfies Prisma.ProfileInclude;
 
+const include = cardInclude;
 type Row = Prisma.ProfileGetPayload<{ include: typeof include }>;
 
 export function fullName(p: { firstName: string | null; lastName: string | null }) {
@@ -84,7 +92,7 @@ function initialsOf(name: string) {
 
 const year = (d: Date | null) => (d ? d.getUTCFullYear() : null);
 
-function toCard(p: Row, mine: Set<string>, similarity: number | null): PersonCard {
+export function toCard(p: Row, mine: Set<string>, similarity: number | null): PersonCard {
   const name = fullName(p);
   const job = p.experiences[0];
   const title = job ? [job.jobRole, job.company].filter(Boolean).join(", ") : p.headline;
@@ -117,7 +125,10 @@ function toCard(p: Row, mine: Set<string>, similarity: number | null): PersonCar
     hasLinkedin: Boolean(p.linkedinUrl),
     why,
     similarity,
-    keywords: [name, p.headline, p.department, p.college?.name, ...p.experiences.flatMap((e) => [e.company, e.jobRole]), ...tags]
+    companies: [...new Set(p.experiences.map((e) => e.company.trim()).filter(Boolean))],
+    clubs: p.clubs.map((c) => c.club.name),
+    points: p.points,
+    keywords: [name, p.headline, p.department, p.college?.name, ...p.experiences.flatMap((e) => [e.company, e.jobRole]), ...p.clubs.map((c) => c.club.name), ...tags]
       .filter(Boolean)
       .join(" ")
       .toLowerCase(),
@@ -129,7 +140,7 @@ function listOf(items: string[]) {
 }
 
 export async function getViewer(userId: string, fallbackName?: string | null): Promise<Viewer> {
-  const [p, unreadMessages, pendingMentorship] = await Promise.all([
+  const [p, unreadMessages, pendingMentorship, pendingConnections] = await Promise.all([
     prisma.profile.findUnique({ where: { id: userId }, include: { college: { select: { name: true } } } }),
     prisma.message.count({
       where: {
@@ -139,6 +150,7 @@ export async function getViewer(userId: string, fallbackName?: string | null): P
       },
     }),
     prisma.mentorshipRequest.count({ where: { mentorId: userId, status: "pending" } }),
+    prisma.connection.count({ where: { addresseeId: userId, status: "pending" } }),
   ]);
   const own = p ? fullName(p) : "Unnamed member";
   const name = own === "Unnamed member" && fallbackName ? fallbackName : own;
@@ -153,7 +165,8 @@ export async function getViewer(userId: string, fallbackName?: string | null): P
     hasGithub: Boolean(p?.githubUsername || p?.githubUrl),
     hasLinkedin: Boolean(p?.linkedinUrl),
     onboarded: Boolean(p?.onboardedAt),
-    counts: { unreadMessages, pendingMentorship },
+    points: p?.points ?? 0,
+    counts: { unreadMessages, pendingMentorship, pendingConnections },
   };
 }
 
@@ -227,7 +240,10 @@ function projectsOf(v: Prisma.JsonValue): Project[] {
 }
 
 export async function getPerson(id: string, viewer: Viewer): Promise<PersonProfile | null> {
-  const p = await prisma.profile.findUnique({ where: { id }, include });
+  const [p, connections] = await Promise.all([
+    prisma.profile.findUnique({ where: { id }, include }),
+    prisma.connection.count({ where: { status: "accepted", OR: [{ requesterId: id }, { addresseeId: id }] } }),
+  ]);
   if (!p || !p.onboardedAt) return null;
 
   const isMe = id === viewer.id;
@@ -252,5 +268,18 @@ export async function getPerson(id: string, viewer: Viewer): Promise<PersonProfi
       current: e.endDate === null,
     })),
     shared: [...new Set([...p.interests, ...p.expertise].filter((t) => mine.has(t.toLowerCase())))],
+    connections,
   };
+}
+
+/** Cosine similarity of two people's embeddings (0..1), or null if either isn't embedded yet. */
+export async function similarityBetween(a: string, b: string): Promise<number | null> {
+  try {
+    const rows = await prisma.$queryRaw<{ s: number | null }[]>`select public.profile_similarity(${a}::uuid, ${b}::uuid) as s`;
+    const s = rows[0]?.s;
+    return s === null || s === undefined ? null : Number(s);
+  } catch (e) {
+    console.warn("profile_similarity unavailable:", e);
+    return null;
+  }
 }
