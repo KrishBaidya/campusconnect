@@ -117,6 +117,7 @@ model Profile {
   postLikes           PostLike[]
   clubs               ClubMember[]
   pointEvents         PointEvent[]
+  apiTokens           ApiToken[]
 
   @@index([collegeId])
   @@index([role])
@@ -300,4 +301,22 @@ model PointEvent {
   @@unique([profileId, reason, refId])
   @@index([profileId, createdAt])
   @@map("point_events")
+}
+
+/// Personal access tokens for the MCP endpoint. Only the SHA-256 hash is
+/// stored; the token is shown once. Server-only (RLS on, no policies).
+model ApiToken {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profileId  String    @map("profile_id") @db.Uuid
+  profile    Profile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  name       String
+  tokenHash  String    @unique @map("token_hash")
+  /// first characters of the token, so people can tell their tokens apart
+  prefix     String
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  lastUsedAt DateTime? @map("last_used_at") @db.Timestamptz(6)
+  revokedAt  DateTime? @map("revoked_at") @db.Timestamptz(6)
+
+  @@index([profileId])
+  @@map("api_tokens")
 }

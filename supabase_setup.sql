@@ -566,3 +566,27 @@ as $$
   order by distance + 0;
 $$;
 revoke execute on function public.search_profiles_by_vector(extensions.vector, uuid, text, int) from public, anon, authenticated;
+
+-- =====================================================================
+-- 8. API tokens for the MCP endpoint (prisma/migrations/6_api_tokens)
+-- =====================================================================
+CREATE TABLE "api_tokens" (
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "profile_id" UUID NOT NULL,
+    "name" TEXT NOT NULL,
+    "token_hash" TEXT NOT NULL,
+    -- first characters of the token, so people can tell their tokens apart
+    "prefix" TEXT NOT NULL,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "last_used_at" TIMESTAMPTZ(6),
+    "revoked_at" TIMESTAMPTZ(6),
+
+    CONSTRAINT "api_tokens_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "api_tokens_name_length" CHECK (char_length(btrim("name")) BETWEEN 1 AND 60)
+);
+
+CREATE UNIQUE INDEX "api_tokens_token_hash_key" ON "api_tokens"("token_hash");
+CREATE INDEX "api_tokens_profile_id_idx" ON "api_tokens"("profile_id");
+ALTER TABLE "api_tokens" ADD CONSTRAINT "api_tokens_profile_id_fkey" FOREIGN KEY ("profile_id") REFERENCES "profiles"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+alter table public.api_tokens enable row level security;

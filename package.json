@@ -15,6 +15,7 @@
   "dependencies": {
     "@base-ui/react": "^1.9.0",
     "@google/genai": "^2.30.0",
+    "@modelcontextprotocol/sdk": "1.31.0",
     "@prisma/adapter-pg": "7.10.1",
     "@prisma/client": "7.10.1",
     "@supabase/ssr": "^0.12.7",
