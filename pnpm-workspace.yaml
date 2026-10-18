@@ -1,7 +1,9 @@
 allowBuilds:
-  esbuild: set this to true or false
+  "@google/genai": false
+  "@prisma/engines": true
+  esbuild: true
+  prisma: true
+  protobufjs: false
   sharp: false
   unrs-resolver: false
-  workerd: set this to true or false
-  prisma: true
-  "@prisma/engines": true
+  workerd: false

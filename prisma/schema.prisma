@@ -38,6 +38,8 @@ model Profile {
   lastName     String?   @map("last_name")
   avatarUrl    String?   @map("avatar_url")
   headline     String?
+  /// short AI-written summary shown on the profile page
+  bio          String?
   collegeId    String?   @map("college_id") @db.Uuid
   college      College?  @relation(fields: [collegeId], references: [id])
   department   String?
@@ -50,8 +52,13 @@ model Profile {
   availability Json?
   achievements Json      @default("[]")
   githubUrl    String?   @map("github_url")
+  githubUsername String? @map("github_username")
   linkedinUrl  String?   @map("linkedin_url")
   points       Int       @default(0)
+  /// e.g. [{"name":"...","description":"...","url":"...","tech":["Next.js"]}]
+  projects     Json      @default("[]")
+  /// set when the user finishes onboarding (null = send them to /onboarding)
+  onboardedAt  DateTime? @map("onboarded_at") @db.Timestamptz(6)
 
   experiences  Experience[]
   embedding    ProfileEmbedding?

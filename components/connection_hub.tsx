@@ -78,9 +78,11 @@ const pct = (v: number, of: number) => `${(v / of) * 100}%`;
 /* ------------------------------------------------------------------ */
 
 function useNow(active: boolean) {
-  const [now, setNow] = React.useState(() => Date.now());
+  // start at 0 and read the clock after mount — Date.now() during render breaks prerendering
+  const [now, setNow] = React.useState(0);
   React.useEffect(() => {
     if (!active) return;
+    setNow(Date.now());
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, [active]);
