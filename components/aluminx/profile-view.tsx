@@ -7,6 +7,7 @@ import { hueOf } from "@/lib/hue";
 import type { PersonProfile } from "@/lib/people";
 import { GitHubMark, LinkedInMark } from "./brand-icons";
 import { PersonNode } from "./person-node";
+import { RequestMentorship, type RequestContext } from "./request-mentorship";
 
 const INTENT_LABELS: Record<string, string> = {
   mentor: "Mentoring",
@@ -19,7 +20,7 @@ const INTENT_LABELS: Record<string, string> = {
 };
 
 /** Profile A from the mockups: source hub header, identity row, meta line, Overview / Projects tabs. */
-export function ProfileView({ person, isMe }: { person: PersonProfile; isMe: boolean }) {
+export function ProfileView({ person, isMe, mentorship }: { person: PersonProfile; isMe: boolean; mentorship?: RequestContext | null }) {
   const [tab, setTab] = useState<"overview" | "projects">("overview");
   const first = person.name.split(" ")[0];
   const shared = new Set(person.shared.map((t) => t.toLowerCase()));
@@ -46,6 +47,7 @@ export function ProfileView({ person, isMe }: { person: PersonProfile; isMe: boo
               Message
             </Link>
           )}
+          {!isMe && mentorship && <RequestMentorship mentorId={person.id} mentorName={person.name} ctx={mentorship} />}
           {person.linkedinUrl && (
             <a className="btn" href={person.linkedinUrl} target="_blank" rel="noreferrer">
               <LinkedInMark className="ic" />

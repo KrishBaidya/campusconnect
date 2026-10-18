@@ -1,6 +1,6 @@
 import "./aluminx.css";
 import Link from "next/link";
-import { Compass, House, LogOut, MessagesSquare, UserRound } from "lucide-react";
+import { Compass, Handshake, House, LogOut, MessagesSquare, UserRound } from "lucide-react";
 import type { Viewer } from "@/lib/people";
 import { GitHubMark, LinkedInMark } from "./brand-icons";
 
@@ -8,6 +8,7 @@ const NAV = [
   { key: "home", href: "/", label: "Home", Icon: House },
   { key: "discover", href: "/discover", label: "Discover", Icon: Compass },
   { key: "messages", href: "/messages", label: "Messages", Icon: MessagesSquare },
+  { key: "mentorship", href: "/mentorship", label: "Mentorship", Icon: Handshake },
   { key: "profile", href: "/profile", label: "Profile", Icon: UserRound },
 ] as const;
 
@@ -17,6 +18,10 @@ export type NavKey = (typeof NAV)[number]["key"];
 export function AppShell({ viewer, active, children }: { viewer: Viewer; active: NavKey | null; children: React.ReactNode }) {
   const ai = Math.max(0, NAV.findIndex((n) => n.key === active));
   const live = Number(viewer.hasGithub) + Number(viewer.hasLinkedin);
+  const counts: Partial<Record<NavKey, number>> = {
+    messages: viewer.counts.unreadMessages,
+    mentorship: viewer.counts.pendingMentorship,
+  };
 
   return (
     <div className="ax">
@@ -34,11 +39,16 @@ export function AppShell({ viewer, active, children }: { viewer: Viewer; active:
           <div className="rnav-rail" style={{ "--ai": ai } as React.CSSProperties}>
             {active && <span className="rnav-pk" />}
             {NAV.map(({ key, href, label, Icon }) => (
-              <Link key={key} href={href} className="rn" aria-current={key === active ? "page" : undefined} aria-label={label}>
+              <Link key={key} href={href} className="rn" aria-current={key === active ? "page" : undefined} aria-label={counts[key] ? `${label}, ${counts[key]} new` : label}>
                 <span className="rn-n">
                   <Icon className="ic" />
                 </span>
                 <span className="rn-l">{label}</span>
+                {counts[key] ? (
+                  <span className="cnt num" aria-hidden="true">
+                    {counts[key]}
+                  </span>
+                ) : null}
               </Link>
             ))}
           </div>

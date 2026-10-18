@@ -61,6 +61,8 @@ export type Viewer = {
   hasGithub: boolean;
   hasLinkedin: boolean;
   onboarded: boolean;
+  /** badges on the rail nav */
+  counts: { unreadMessages: number; pendingMentorship: number };
 };
 
 const include = {
@@ -127,12 +129,23 @@ function listOf(items: string[]) {
 }
 
 export async function getViewer(userId: string, fallbackName?: string | null): Promise<Viewer> {
-  const p = await prisma.profile.findUnique({ where: { id: userId }, include: { college: { select: { name: true } } } });
-  const name = p ? fullName(p) : fallbackName || "Member";
+  const [p, unreadMessages, pendingMentorship] = await Promise.all([
+    prisma.profile.findUnique({ where: { id: userId }, include: { college: { select: { name: true } } } }),
+    prisma.message.count({
+      where: {
+        readAt: null,
+        senderId: { not: userId },
+        conversation: { OR: [{ userAId: userId }, { userBId: userId }] },
+      },
+    }),
+    prisma.mentorshipRequest.count({ where: { mentorId: userId, status: "pending" } }),
+  ]);
+  const own = p ? fullName(p) : "Unnamed member";
+  const name = own === "Unnamed member" && fallbackName ? fallbackName : own;
   return {
     id: userId,
-    name: name === "Unnamed member" && fallbackName ? fallbackName : name,
-    initials: initialsOf(name === "Unnamed member" && fallbackName ? fallbackName : name),
+    name,
+    initials: initialsOf(name),
     role: p?.role ?? null,
     collegeId: p?.collegeId ?? null,
     college: p?.college?.name ?? null,
@@ -140,6 +153,7 @@ export async function getViewer(userId: string, fallbackName?: string | null): P
     hasGithub: Boolean(p?.githubUsername || p?.githubUrl),
     hasLinkedin: Boolean(p?.linkedinUrl),
     onboarded: Boolean(p?.onboardedAt),
+    counts: { unreadMessages, pendingMentorship },
   };
 }
 

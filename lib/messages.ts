@@ -159,3 +159,43 @@ export async function markRead(supabase: SupabaseClient, conversationId: string,
     .is("read_at", null);
   if (error) throw error;
 }
+
+export type ThreadContext = {
+  role: "student" | "alumni" | null;
+  batchYear: number | null;
+  /** interests/expertise you both list */
+  shared: string[];
+  /** accepted mentorship sessions between you two, oldest first */
+  sessions: { id: string; at: string; youAre: "mentor" | "mentee" }[];
+};
+
+/** Side-panel data for an open thread. Sessions are empty until the 4_mentorship migration is applied. */
+export async function fetchThreadContext(supabase: SupabaseClient, me: string, otherId: string): Promise<ThreadContext> {
+  const [{ data: people, error }, sessions] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("id, role, batch_year, interests, expertise")
+      .in("id", [me, otherId])
+      .returns<{ id: string; role: "student" | "alumni" | null; batch_year: number | null; interests: string[]; expertise: string[] }[]>(),
+    supabase
+      .from("mentorship_requests")
+      .select("id, mentor_id, scheduled_at")
+      .eq("status", "accepted")
+      .or(`and(mentor_id.eq.${me},mentee_id.eq.${otherId}),and(mentor_id.eq.${otherId},mentee_id.eq.${me})`)
+      .order("scheduled_at", { ascending: true })
+      .returns<{ id: string; mentor_id: string; scheduled_at: string }[]>(),
+  ]);
+  if (error) throw error;
+
+  const mine = people?.find((p) => p.id === me);
+  const theirs = people?.find((p) => p.id === otherId);
+  const myTags = new Set([...(mine?.interests ?? []), ...(mine?.expertise ?? [])].map((t) => t.toLowerCase()));
+  const shared = [...new Set([...(theirs?.interests ?? []), ...(theirs?.expertise ?? [])].filter((t) => myTags.has(t.toLowerCase())))];
+
+  return {
+    role: theirs?.role ?? null,
+    batchYear: theirs?.batch_year ?? null,
+    shared,
+    sessions: (sessions.data ?? []).map((s) => ({ id: s.id, at: s.scheduled_at, youAre: s.mentor_id === me ? "mentor" : "mentee" })),
+  };
+}

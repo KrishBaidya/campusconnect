@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { notFound, redirect } from "next/navigation";
 import { getUser } from "@/lib/supabase/server";
 import { getPerson, getViewer } from "@/lib/people";
+import { getRequestContext } from "@/lib/mentorship";
 import { AppShell } from "@/components/aluminx/app-shell";
 import { ProfileView } from "@/components/aluminx/profile-view";
 import { ProfileSkeleton } from "@/components/aluminx/profile-skeleton";
@@ -27,12 +28,12 @@ async function Person({ params }: Pick<PageProps<"/profile/[id]">, "params">) {
   if (!UUID.test(id)) notFound();
 
   const viewer = await getViewer(user.id, (user.user_metadata?.full_name ?? user.user_metadata?.name) as string | undefined);
-  const person = await getPerson(id, viewer);
+  const [person, mentorship] = await Promise.all([getPerson(id, viewer), getRequestContext(id, user.id)]);
   if (!person) notFound();
 
   return (
     <AppShell viewer={viewer} active="discover">
-      <ProfileView person={person} isMe={false} />
+      <ProfileView person={person} isMe={false} mentorship={mentorship} />
     </AppShell>
   );
 }

@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 /** Pages that need a signed-in user. Everything else is public. */
-const PROTECTED = ["/onboarding", "/profile", "/api/profile", "/messages", "/discover"];
+const PROTECTED = ["/onboarding", "/profile", "/api/profile", "/messages", "/discover", "/mentorship"];
 
 /** Refreshes the Supabase session cookie on every request and guards protected pages. */
 export async function updateSession(request: NextRequest) {
