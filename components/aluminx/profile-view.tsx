@@ -29,6 +29,7 @@ export function ProfileView({
   connection,
   similarity,
   clubsSlot,
+  footer,
 }: {
   person: PersonProfile;
   isMe: boolean;
@@ -38,6 +39,8 @@ export function ProfileView({
   similarity?: number | null;
   /** replaces the read-only Clubs list (your own profile passes the editor) */
   clubsSlot?: React.ReactNode;
+  /** rendered below the tabs (your own profile shows AI-assistant tokens here) */
+  footer?: React.ReactNode;
 }) {
   const [tab, setTab] = useState<"overview" | "projects">("overview");
   const first = person.name.split(" ")[0];
@@ -231,6 +234,7 @@ export function ProfileView({
           )}
         </div>
       )}
+      {footer}
     </main>
   );
 }

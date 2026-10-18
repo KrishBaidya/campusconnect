@@ -8,6 +8,9 @@ import { ProfileView } from "@/components/aluminx/profile-view";
 import { ProfileSkeleton } from "@/components/aluminx/profile-skeleton";
 import { ClubsEditor } from "@/components/aluminx/clubs-editor";
 import { prisma } from "@/lib/prisma";
+import { headers } from "next/headers";
+import { listApiTokens } from "@/lib/api-tokens";
+import { McpTokens } from "@/components/aluminx/mcp-tokens";
 
 export const metadata: Metadata = { title: "Your profile · AluminX" };
 
@@ -27,13 +30,26 @@ async function MyProfile() {
   const person = viewer.onboarded ? await getPerson(user.id, viewer) : null;
   if (!person) redirect("/onboarding");
 
+  const [tokens, h] = await Promise.all([listApiTokens(user.id), headers()]);
+  const origin = process.env.NEXT_PUBLIC_SITE_URL ?? `${h.get("x-forwarded-proto") ?? "http"}://${h.get("host") ?? "localhost:3000"}`;
+
   const collegeClubs = viewer.collegeId
     ? await prisma.club.findMany({ where: { collegeId: viewer.collegeId }, select: { name: true }, orderBy: { name: "asc" }, take: 200 })
     : [];
 
   return (
     <AppShell viewer={viewer} active="profile">
-      <ProfileView person={person} isMe clubsSlot={<ClubsEditor clubs={person.clubs} suggestions={collegeClubs.map((c) => c.name)} />} />
+      <ProfileView
+        person={person}
+        isMe
+        clubsSlot={<ClubsEditor clubs={person.clubs} suggestions={collegeClubs.map((c) => c.name)} />}
+        footer={
+          <McpTokens
+            endpoint={`${origin.replace(/\/$/, "")}/api/mcp`}
+            tokens={tokens.map((t) => ({ ...t, createdAt: t.createdAt.toISOString(), lastUsedAt: t.lastUsedAt?.toISOString() ?? null }))}
+          />
+        }
+      />
     </AppShell>
   );
 }
