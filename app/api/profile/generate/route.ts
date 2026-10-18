@@ -161,6 +161,17 @@ export async function POST(request: Request) {
     // the profile is saved either way; matching just won't include them until re-embedded
     console.error("Embedding failed:", e);
     embedded = false;
+    // Don't keep matching on the previous profile's vector: clear it and store the new
+    // source text, so a re-embed job can pick up rows where embedding is null.
+    try {
+      await prisma.$executeRaw`
+        insert into profile_embeddings (profile_id, embedding, source, updated_at)
+        values (${user.id}::uuid, null, ${source}, now())
+        on conflict (profile_id) do update
+        set embedding = null, source = excluded.source, updated_at = now()`;
+    } catch (clearError) {
+      console.error("Clearing stale embedding failed:", clearError);
+    }
   }
 
   return NextResponse.json({ ok: true, embedded });
